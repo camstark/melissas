@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Open+Sans" />
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/css/bootstrap.min.css" />
 <style>
 
 .axis path,
@@ -18,25 +21,70 @@
   pointer-events: all;
 }
 
-.cells :hover circle {
+/*.cells :hover circle {
   fill: #5b2b11;
+}*/
+
+h3 {
+	font-family: "Open Sans";
+	font-size: 14px;
+	font-style: normal;
+	font-variant: normal;
+	font-weight: 500;
+	line-height: 15.4px;
 }
+ p, label, input {
+   margin: 0;
+   font-family: "Open Sans";
+   font-size: 14px;
+   font-style: normal;
+   font-variant: normal;
+   font-weight: 400;
+   line-height: 20px;
+ }
 
 </style>
-<div id="mouseoverBox">
-  <p id="name">Name:</p>
-  <p id="category">Category:</p>
-  <p id="time">Gun Time:</p>
-  <p id="rank">Overall: </p>
+<div class="container">
+  <div class="row">
+    <div class="col-md-4 col-sm-12">
+      <div id="mouseoverBox">
+        <h3>Melissa's 10k Results 2016</h3>
+        <div class="ui-widget">
+         <label for="automplete-1">Search a name: </label>
+         <input id="automplete-1">
+      </div>
+        <p><span style="color:#7d7c7a">Name: </span><span id="name"></span><p>
+        <p><span style="color:#7d7c7a">Category: </span><span id="category"></span><p>
+        <p><span style="color:#7d7c7a">Gun Time: </span><span id="time"></span><p>
+        <p><span style="color:#7d7c7a">Overall: </span><span id="rank"></span><p>
+      </div>    </div>
+    <div class="col-md-8 col-sm-12">
+      <div class="row">
+      <div class="col-md-12 col-sm-12">
+        <svg id="histogram" width="600" height="355"></svg>
+<div>
 </div>
-<svg width="600" height="400"></svg>
+      <div class="row">
+      <div class="col-md-12 col-sm-12">
+        <svg id="beeswarm" width="600" height="200"></svg>
+<div>
+</div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script>
 
-var svg = d3.select("svg"),
+var svg = d3.select("#histogram"),
+    svg2 = d3.select("#beeswarm"),
     margin = {top: 40, right: 40, bottom: 40, left: 40},
     width = svg.attr("width") - margin.left - margin.right,
-    height = svg.attr("height") - margin.top - margin.bottom;
+    height = svg.attr("height") - margin.top - margin.bottom,
+    height2 = svg2.attr("height") - margin.top - margin.bottom;
 
 var formatValue = d3.format(",d");
 
@@ -76,6 +124,9 @@ var pad = d3.format("02d");
 var g = svg.append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+    var g2 = svg2.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
 d3.csv("melissas_results.csv", function(error, data) {
   if (error) throw error;
 
@@ -105,17 +156,55 @@ d3.csv("melissas_results.csv", function(error, data) {
     }
   });
 
-  console.log(data.length)
   data = data.filter(function(d) {
     return d.RANK != "" & d.RANK != "DQ" & d.hourSeconds <= 7000;
   })
-  console.log(data);
+
+  var names = data.map(function(d) {return d.NAME});
+  $( "#automplete-1" ).autocomplete({
+     source: names,
+     autoFocus:true,
+     select: function(event, ui) {
+       d3.selectAll(".bin circle")
+       .each(function(d){ if (d.NAME === ui.item.value) {searchover(d)}})
+       .attr("r", function(d){ if (d.NAME === ui.item.value) {return 5} else {return histRadius}})
+       .style("stroke", function(d){ if (d.NAME === ui.item.value) {return "#5b2b11"}});
+
+       d3.selectAll(".cells circle")
+       .attr("r", function(d){ if (d.data.NAME === ui.item.value) {return 5} else {return histRadius}})
+       .style("stroke", function(d){ if (d.data.NAME === ui.item.value) {return "#5b2b11"}});
+
+     },
+     response: function(event, ui) {
+       var content = d3.map();
+       ui.content.forEach(function(d) {
+         content.set(d.value, d);
+       })
+
+      d3.selectAll(".bin circle")
+        // .attr("r", function(d){ if (content.get(d.NAME) != undefined) {return 5} else {return histRadius}})
+        .style("stroke", function(d){ if (content.get(d.NAME) != undefined) {return "#5b2b11"}});
+
+      d3.selectAll(".cells circle")
+        // .attr("r", function(d){ if (content.get(d.data.NAME) != undefined) {return 5} else {return histRadius}})
+        .style("stroke", function(d){ if (content.get(d.data.NAME) != undefined) {return "#5b2b11"}});
+
+     },
+     focus: function(event, ui) {
+       d3.selectAll(".bin circle")
+       .each(function(d){ if (d.NAME === ui.item.value) {searchover(d)}})
+       .attr("r", function(d){ if (d.NAME === ui.item.value) {return 5} else {return histRadius}})
+
+       d3.selectAll(".cells circle")
+       .attr("r", function(d){ if (d.data.NAME === ui.item.value) {return 5} else {return histRadius}})
+     }
+  });
 
   x.domain(d3.extent(data, function(d) { return d.value; }));
 
   var simulation = d3.forceSimulation(data)
       .force("x", d3.forceX(function(d) { return x(d.value); }).strength(1))
-      .force("y", d3.forceY(height / 2))
+      .force("y", d3.forceY(height2 / 2))
       .force("collide", d3.forceCollide(4))
       .stop();
 
@@ -137,29 +226,59 @@ d3.csv("melissas_results.csv", function(error, data) {
       // .call(d3.axisBottom(x).ticks(10, "%I:%M:%S"));
       .call(xAxis);
 
-  var cell = g.append("g")
+      var hist = d3.histogram()
+          .thresholds(120)
+          .value(function(d) {return d.value})
+          (data)
+
+          var y = d3.scaleLinear()
+              .range([height, 0])
+              .domain(d3.extent(hist, function(d) {return d.length}));
+
+          // var bar = g.selectAll(".bar")
+          //     .data(hist)
+          //   .enter().append("g")
+          //     .attr("class", "bar")
+          //     // .attr("transform", function(d) { console.log(d); return "translate(" + x(d.value) + "," + y(1) + ")"; });
+          //     .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; });
+          //
+          // bar.append("rect")
+          //     .attr("x", 1)
+          //     // .attr("width", x(data[0].dx) - 1)
+          //     .attr("width", 2)
+          //     .attr("height", function(d) { return height - y(d.length); });
+
+            var histRadius = 2.5;
+              var group = g.selectAll(".bin")
+                  .data(hist)
+                .enter().append("g")
+                  .attr("class", "bin")
+                  .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + (height-histRadius) + ")"; });
+
+              group.selectAll(".finisher")
+                  .data(function(d) {return d.slice()})
+                  .enter().append("circle")
+                  .attr("r", histRadius)
+                  .attr("cx", 1)
+                  .attr("cy", function(d, i) {return -i*(histRadius*2)})
+                  .style("fill", function(d) {return d.us})
+                  .style("opacity", function(d) {return d.transp})
+                  .on("mouseover", mouseover)
+                  .on("mouseout", mouseout)
+                  // .attr("width", x(data[0].dx) - 1)
+                  // .attr("width", 2)
+                  // .attr("height", function(d) { return height - y(d.length); });
+
+  var cell = g2.append("g")
       .attr("class", "cells")
     .selectAll("g").data(d3.voronoi()
-        .extent([[-margin.left, -margin.top], [width + margin.right, height + margin.top]])
+        .extent([[-margin.left, -margin.top], [width + margin.right, height2 + margin.top]])
         .x(function(d) { return d.x; })
         .y(function(d) { return d.y; })
       .polygons(data)).enter().append("g");
 
-  cell.on("mouseover", function(d) {
-    console.log(d.data);
-    d3.select("#name").text("Name: " + d.data.NAME);
-    d3.select("#category").text("Category: " + d.data.CATEGORY);
-    d3.select("#time").text("Gun Time: " + d.data["GUN TIME"]);
-    d3.select("#rank").text("Overall: " + d.data.RANK);
-  });
-
-  cell.on("mouseout", function(d) {
-    console.log(d.data);
-    d3.select("#name").text("Name: ");
-    d3.select("#category").text("Category: ");
-    d3.select("#time").text("Gun Time: ");
-    d3.select("#rank").text("Overall: ");
-  });
+  cell.on("mouseover", mouseover);
+  cell.on("mouseout", mouseout);
 
   cell.append("circle")
       .attr("r", 3)
@@ -170,6 +289,36 @@ d3.csv("melissas_results.csv", function(error, data) {
 
   cell.append("path")
       .attr("d", function(d) { return "M" + d.join("L") + "Z"; });
+
+function searchover(d) {
+  var element = (d.data != undefined ? d.data : d)
+  d3.select("#name").text(element.NAME);
+  d3.select("#category").text(element.CATEGORY);
+  d3.select("#time").text(element["GUN TIME"]);
+  d3.select("#rank").text(element.RANK);
+}
+
+  function mouseover(d) {
+    if (d.data === undefined) {
+      d3.select(this).attr("r", 5).style("stroke", "#5b2b11");
+    }
+    else {
+      d3.select(this).select('circle').attr("r", 5).style("stroke", "#5b2b11");
+    }
+
+    var element = (d.data != undefined ? d.data : d)
+    d3.select("#name").text(element.NAME);
+    d3.select("#category").text(element.CATEGORY);
+    d3.select("#time").text(element["GUN TIME"]);
+    d3.select("#rank").text(element.RANK);
+  }
+  function mouseout() {
+    d3.selectAll('circle').attr("r", histRadius).style("stroke", "none")
+    d3.select("#name").text("");
+    d3.select("#category").text("");
+    d3.select("#time").text("");
+    d3.select("#rank").text("");
+  }
 
   // cell.append("title")
   //     .text(function(d) { return d.data.id + "\n" + formatValue(d.data.value); });
