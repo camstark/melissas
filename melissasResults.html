@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  font: 10px sans-serif;
+}
+
+.cells path {
+  fill: none;
+  pointer-events: all;
+}
+
+.cells :hover circle {
+  fill: #5b2b11;
+}
+
+</style>
+<div id="mouseoverBox">
+  <p id="name">Name:</p>
+  <p id="category">Category:</p>
+  <p id="time">Gun Time:</p>
+  <p id="rank">Overall: </p>
+</div>
+<svg width="600" height="400"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+var svg = d3.select("svg"),
+    margin = {top: 40, right: 40, bottom: 40, left: 40},
+    width = svg.attr("width") - margin.left - margin.right,
+    height = svg.attr("height") - margin.top - margin.bottom;
+
+var formatValue = d3.format(",d");
+
+// Format an absolute time relative to the epoch (e.g., thirty seconds after the
+// epoch is formatted as "T+0:30").
+function formatRelativeTime(absolute) {
+  console.log(absolute);
+  console.log(epoch);
+  var delta = absolute - epoch;
+  if (!delta) return "T";
+  var milliseconds = Math.abs(delta);
+  // return "T" + (delta < 0 ? "-" : "+")
+  // + Math.floor(milliseconds / 6e4) + ":"
+  return Math.floor(milliseconds / 6e4) + ":"
+      + pad(Math.floor(milliseconds % 6e4 / 1e3));
+}
+
+// Convert an absolute time to a time relative to the epoch.
+function toRelative(absolute) {
+  return new Date(absolute - epoch);
+}
+// Convert a time relative to the epoch to an absolute time.
+function toAbsolute(relative) {
+  return new Date(+relative + +epoch);
+}
+
+var epoch = new Date(2016, 8, 27, 0, 0, 0, 0);
+var pad = d3.format("02d");
+
+// var x = d3.scaleLog()
+//     .rangeRound([0, width]);
+
+    var x = d3.scaleTime()
+        .rangeRound([0, width]);
+
+
+var g = svg.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+d3.csv("melissas_results.csv", function(error, data) {
+  if (error) throw error;
+
+  data.forEach(function(d) {
+    var holder = d["GUN TIME"].split(":");
+    if (holder.length === 3) {
+      d.hourSeconds = (+holder[0])*60*60;
+      d.minuteSeconds = (+holder[1])*60;
+      d.secondSeconds = +holder[2];
+      // d.value = d.hourSeconds + d.minuteSeconds + d.secondSeconds;
+      // d.value = new Date(2016, 8, 27, +holder[0], +holder[1], +holder[2]);
+      var reset = new Date(epoch);
+      d.value = reset.setHours(+holder[0],+holder[1],+holder[2]);
+      // console.log(d.value);
+      if(d.NAME === "Kelli Zacharopoulos" |
+                d.NAME === "Cameron Stark" |
+                d.NAME === "Dan Forget" |
+                d.NAME === "Meaghan McClurg" |
+                d.NAME === "Gillian McClurg" |
+                d.NAME === "Megan Dietrich" |
+                d.NAME === "Kathy Dietrich") {
+                  // d.us = "#890620"
+                  d.us = "#af125a"
+                  d.transp = 1;
+                }
+              else {d.us = "#87f1ff"; d.transp=.5}
+    }
+  });
+
+  console.log(data.length)
+  data = data.filter(function(d) {
+    return d.RANK != "" & d.RANK != "DQ" & d.hourSeconds <= 7000;
+  })
+  console.log(data);
+
+  x.domain(d3.extent(data, function(d) { return d.value; }));
+
+  var simulation = d3.forceSimulation(data)
+      .force("x", d3.forceX(function(d) { return x(d.value); }).strength(1))
+      .force("y", d3.forceY(height / 2))
+      .force("collide", d3.forceCollide(4))
+      .stop();
+
+  for (var i = 0; i < 120; ++i) simulation.tick();
+
+  var xAxis = d3.axisBottom(x)
+  // .tickFormat(formatRelativeTime)
+  .tickFormat(d3.timeFormat("%H:%M"))
+      .tickValues(d3.scaleTime() // Compute ticks relative to epoch.
+          .domain(x.domain().map(toRelative))
+          .ticks(10)
+          .map(toAbsolute));
+
+  g.append("g")
+      .attr("class", "axis axis--x")
+      .attr("transform", "translate(0," + height + ")")
+      // .call(d3.axisBottom(x));
+      // .call(d3.axisBottom(x).tickFormat(d;
+      // .call(d3.axisBottom(x).ticks(10, "%I:%M:%S"));
+      .call(xAxis);
+
+  var cell = g.append("g")
+      .attr("class", "cells")
+    .selectAll("g").data(d3.voronoi()
+        .extent([[-margin.left, -margin.top], [width + margin.right, height + margin.top]])
+        .x(function(d) { return d.x; })
+        .y(function(d) { return d.y; })
+      .polygons(data)).enter().append("g");
+
+  cell.on("mouseover", function(d) {
+    console.log(d.data);
+    d3.select("#name").text("Name: " + d.data.NAME);
+    d3.select("#category").text("Category: " + d.data.CATEGORY);
+    d3.select("#time").text("Gun Time: " + d.data["GUN TIME"]);
+    d3.select("#rank").text("Overall: " + d.data.RANK);
+  });
+
+  cell.on("mouseout", function(d) {
+    console.log(d.data);
+    d3.select("#name").text("Name: ");
+    d3.select("#category").text("Category: ");
+    d3.select("#time").text("Gun Time: ");
+    d3.select("#rank").text("Overall: ");
+  });
+
+  cell.append("circle")
+      .attr("r", 3)
+      .attr("fill", function(d) {return d.data.us})
+      .style("opacity", function(d) {return d.data.transp})
+      .attr("cx", function(d) { return d.data.x; })
+      .attr("cy", function(d) { return d.data.y; });
+
+  cell.append("path")
+      .attr("d", function(d) { return "M" + d.join("L") + "Z"; });
+
+  // cell.append("title")
+  //     .text(function(d) { return d.data.id + "\n" + formatValue(d.data.value); });
+});
+
+
+
+</script>
