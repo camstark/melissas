@@ -114,18 +114,14 @@ function toAbsolute(relative) {
 var epoch = new Date(2016, 8, 27, 0, 0, 0, 0);
 var pad = d3.format("02d");
 
-// var x = d3.scaleLog()
-//     .rangeRound([0, width]);
-
-    var x = d3.scaleTime()
-        .rangeRound([0, width]);
-
+var x = d3.scaleTime()
+    .rangeRound([0, width]);
 
 var g = svg.append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    var g2 = svg2.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+var g2 = svg2.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 d3.csv("melissas_results.csv", function(error, data) {
   if (error) throw error;
@@ -148,7 +144,6 @@ d3.csv("melissas_results.csv", function(error, data) {
                 d.NAME === "Gillian McClurg" |
                 d.NAME === "Megan Dietrich" |
                 d.NAME === "Kathy Dietrich") {
-                  // d.us = "#890620"
                   d.us = "#af125a"
                   d.transp = 1;
                 }
@@ -166,14 +161,7 @@ d3.csv("melissas_results.csv", function(error, data) {
      autoFocus:true,
      select: function(event, ui) {
        d3.selectAll(".bin circle")
-       .each(function(d){ if (d.NAME === ui.item.value) {searchover(d)}})
-       .attr("r", function(d){ if (d.NAME === ui.item.value) {return 5} else {return histRadius}})
-       .style("stroke", function(d){ if (d.NAME === ui.item.value) {return "#5b2b11"}});
-
-       d3.selectAll(".cells circle")
-       .attr("r", function(d){ if (d.data.NAME === ui.item.value) {return 5} else {return histRadius}})
-       .style("stroke", function(d){ if (d.data.NAME === ui.item.value) {return "#5b2b11"}});
-
+       .each(function(d){ if (d.NAME === ui.item.value) {mouseover(d)}})
      },
      response: function(event, ui) {
        var content = d3.map();
@@ -182,17 +170,15 @@ d3.csv("melissas_results.csv", function(error, data) {
        })
 
       d3.selectAll(".bin circle")
-        // .attr("r", function(d){ if (content.get(d.NAME) != undefined) {return 5} else {return histRadius}})
         .style("stroke", function(d){ if (content.get(d.NAME) != undefined) {return "#5b2b11"}});
 
       d3.selectAll(".cells circle")
-        // .attr("r", function(d){ if (content.get(d.data.NAME) != undefined) {return 5} else {return histRadius}})
         .style("stroke", function(d){ if (content.get(d.data.NAME) != undefined) {return "#5b2b11"}});
 
      },
      focus: function(event, ui) {
        d3.selectAll(".bin circle")
-       .each(function(d){ if (d.NAME === ui.item.value) {searchover(d)}})
+       .each(function(d){ if (d.NAME === ui.item.value) {displayResults(d)}})
        .attr("r", function(d){ if (d.NAME === ui.item.value) {return 5} else {return histRadius}})
 
        d3.selectAll(".cells circle")
@@ -226,48 +212,50 @@ d3.csv("melissas_results.csv", function(error, data) {
       // .call(d3.axisBottom(x).ticks(10, "%I:%M:%S"));
       .call(xAxis);
 
-      var hist = d3.histogram()
-          .thresholds(120)
-          .value(function(d) {return d.value})
-          (data)
+    //Data driven thresholds (doesn't work for fixed-width circles histogram)
+    var finishingExtents = d3.extent(data, function(d) {return d.value});
+    var thresholds = d3.range(finishingExtents[0],finishingExtents[1],60000/2)
 
-          var y = d3.scaleLinear()
-              .range([height, 0])
-              .domain(d3.extent(hist, function(d) {return d.length}));
+    var hist = d3.histogram()
+        .thresholds(120)
+        // .thresholds(thresholds)
+        .value(function(d) {return d.value})
+        (data)
 
-          // var bar = g.selectAll(".bar")
-          //     .data(hist)
-          //   .enter().append("g")
-          //     .attr("class", "bar")
-          //     // .attr("transform", function(d) { console.log(d); return "translate(" + x(d.value) + "," + y(1) + ")"; });
-          //     .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; });
-          //
-          // bar.append("rect")
-          //     .attr("x", 1)
-          //     // .attr("width", x(data[0].dx) - 1)
-          //     .attr("width", 2)
-          //     .attr("height", function(d) { return height - y(d.length); });
+    var y = d3.scaleLinear()
+        .range([height, 0])
+        .domain(d3.extent(hist, function(d) {return d.length}));
 
-            var histRadius = 2.5;
-              var group = g.selectAll(".bin")
-                  .data(hist)
-                .enter().append("g")
-                  .attr("class", "bin")
-                  .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + (height-histRadius) + ")"; });
+    // var bar = g.selectAll(".bar")
+    //     .data(hist)
+    //   .enter().append("g")
+    //     .attr("class", "bar")
+    //     // .attr("transform", function(d) { console.log(d); return "translate(" + x(d.value) + "," + y(1) + ")"; });
+    //     .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; });
+    //
+    // bar.append("rect")
+    //     .attr("x", 1)
+    //     // .attr("width", x(data[0].dx) - 1)
+    //     .attr("width", 2)
+    //     .attr("height", function(d) { return height - y(d.length); });
 
-              group.selectAll(".finisher")
-                  .data(function(d) {return d.slice()})
-                  .enter().append("circle")
-                  .attr("r", histRadius)
-                  .attr("cx", 1)
-                  .attr("cy", function(d, i) {return -i*(histRadius*2)})
-                  .style("fill", function(d) {return d.us})
-                  .style("opacity", function(d) {return d.transp})
-                  .on("mouseover", mouseover)
-                  .on("mouseout", mouseout)
-                  // .attr("width", x(data[0].dx) - 1)
-                  // .attr("width", 2)
-                  // .attr("height", function(d) { return height - y(d.length); });
+    var histRadius = 2.5;
+    var group = g.selectAll(".bin")
+        .data(hist)
+      .enter().append("g")
+        .attr("class", "bin")
+        .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + (height-histRadius) + ")"; });
+
+    group.selectAll(".finisher")
+        .data(function(d) {return d.slice()})
+        .enter().append("circle")
+        .attr("r", histRadius)
+        .attr("cx", 1)
+        .attr("cy", function(d, i) {return -i*(histRadius*2)})
+        .style("fill", function(d) {return d.us})
+        .style("opacity", function(d) {return d.transp})
+        .on("mouseover", mouseover)
+        .on("mouseout", mouseout);
 
   var cell = g2.append("g")
       .attr("class", "cells")
@@ -277,8 +265,8 @@ d3.csv("melissas_results.csv", function(error, data) {
         .y(function(d) { return d.y; })
       .polygons(data)).enter().append("g");
 
-  cell.on("mouseover", mouseover);
-  cell.on("mouseout", mouseout);
+  cell.on("mouseover", mouseover)
+      .on("mouseout", mouseout);
 
   cell.append("circle")
       .attr("r", 3)
@@ -290,40 +278,31 @@ d3.csv("melissas_results.csv", function(error, data) {
   cell.append("path")
       .attr("d", function(d) { return "M" + d.join("L") + "Z"; });
 
-function searchover(d) {
-  var element = (d.data != undefined ? d.data : d)
-  d3.select("#name").text(element.NAME);
-  d3.select("#category").text(element.CATEGORY);
-  d3.select("#time").text(element["GUN TIME"]);
-  d3.select("#rank").text(element.RANK);
-}
-
-  function mouseover(d) {
-    if (d.data === undefined) {
-      d3.select(this).attr("r", 5).style("stroke", "#5b2b11");
-    }
-    else {
-      d3.select(this).select('circle').attr("r", 5).style("stroke", "#5b2b11");
-    }
-
-    var element = (d.data != undefined ? d.data : d)
+  function displayResults(element) {
     d3.select("#name").text(element.NAME);
     d3.select("#category").text(element.CATEGORY);
     d3.select("#time").text(element["GUN TIME"]);
     d3.select("#rank").text(element.RANK);
   }
+
+  function mouseover(d) {
+    var element = (d.data != undefined ? d.data : d);
+
+    d3.selectAll(".bin circle")
+      .attr("r", function(d){ if (d.NAME === element.NAME) {return 5} else {return histRadius}})
+      .style("stroke", function(d){ if (d.NAME === element.NAME) {return "#5b2b11"}});
+
+    d3.selectAll(".cells circle")
+      .attr("r", function(d){ if (d.data.NAME === element.NAME) {return 5} else {return histRadius}})
+      .style("stroke", function(d){ if (d.data.NAME === element.NAME) {return "#5b2b11"}});
+
+    displayResults(element);
+  }
   function mouseout() {
-    d3.selectAll('circle').attr("r", histRadius).style("stroke", "none")
-    d3.select("#name").text("");
-    d3.select("#category").text("");
-    d3.select("#time").text("");
-    d3.select("#rank").text("");
+    d3.selectAll('circle').attr("r", histRadius).style("stroke", "none");
+    displayResults({"NAME":"","CATEGORY":"","GUN TIME":"","RANK":""});
   }
 
-  // cell.append("title")
-  //     .text(function(d) { return d.data.id + "\n" + formatValue(d.data.value); });
 });
-
-
 
 </script>
